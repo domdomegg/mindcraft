@@ -479,7 +479,7 @@ export async function collectBlock(bot, blockType, num=1, exclude=null) {
         const block = blocks[0];
         await bot.tool.equipForBlock(block);
         if (isLiquid) {
-            const bucket = bot.inventory.items().find(item => item.name === 'bucket');
+            const bucket = bot.inventory.findInventoryItem('bucket');
             if (!bucket) {
                 log(bot, `Don't have bucket to harvest ${blockType}.`);
                 return false;
@@ -633,7 +633,7 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
 
     if (bot.modes.isOn('cheat') && !dontCheat) {
         if (bot.restrict_to_inventory) {
-            let block = bot.inventory.items().find(item => item.name === blockType);
+            let block = bot.inventory.findInventoryItem(blockType);
             if (!block) {
                 log(bot, `Cannot place ${blockType}, you are restricted to your current inventory.`);
                 return false;
@@ -688,10 +688,10 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
     else if (item_name === 'lava') {
         item_name = 'lava_bucket';
     }
-    let block_item = bot.inventory.items().find(item => item.name === item_name);
+    let block_item = bot.inventory.findInventoryItem(item_name);
     if (!block_item && bot.game.gameMode === 'creative' && !bot.restrict_to_inventory) {
         await bot.creative.setInventorySlot(36, mc.makeItem(item_name, 1)); // 36 is first hotbar slot
-        block_item = bot.inventory.items().find(item => item.name === item_name);
+        block_item = bot.inventory.findInventoryItem(item_name);
     }
     if (!block_item) {
         log(bot, `Don't have any ${item_name} to place.`);
@@ -806,7 +806,7 @@ export async function equip(bot, itemName) {
     if (!item) {
         if (bot.game.gameMode === "creative") {
             await bot.creative.setInventorySlot(36, mc.makeItem(itemName, 1));
-            item = bot.inventory.items().find(item => item.name === itemName);
+            item = bot.inventory.findInventoryItem(itemName);
         }
         else {
             log(bot, `You do not have any ${itemName} to equip.`);
@@ -847,7 +847,7 @@ export async function discard(bot, itemName, num=-1) {
      **/
     let discarded = 0;
     while (true) {
-        let item = bot.inventory.items().find(item => item.name === itemName);
+        let item = bot.inventory.findInventoryItem(itemName);
         if (!item) {
             break;
         }
@@ -881,7 +881,7 @@ export async function putInChest(bot, itemName, num=-1) {
         log(bot, `Could not find a chest nearby.`);
         return false;
     }
-    let item = bot.inventory.items().find(item => item.name === itemName);
+    let item = bot.inventory.findInventoryItem(itemName);
     if (!item) {
         log(bot, `You do not have any ${itemName} to put in the chest.`);
         return false;
@@ -981,7 +981,7 @@ export async function consume(bot, itemName="") {
      **/
     let item, name;
     if (itemName) {
-        item = bot.inventory.items().find(item => item.name === itemName);
+        item = bot.inventory.findInventoryItem(itemName);
         name = itemName;
     }
     if (!item) {
@@ -1958,6 +1958,25 @@ export async function digDown(bot, distance = 10) {
     }
     log(bot, `Dug down ${distance} blocks.`);
     return true;
+}
+
+export async function goToSurface(bot) {
+    /**
+     * Navigate to the surface (highest non-air block at current x,z).
+     * @param {MinecraftBot} bot, reference to the minecraft bot.
+     * @returns {Promise<boolean>} true if the surface was reached, false otherwise.
+     **/
+    const pos = bot.entity.position;
+    for (let y = 360; y > -64; y--) { // probably not the best way to find the surface but it works
+        const block = bot.blockAt(new Vec3(pos.x, y, pos.z));
+        if (!block || block.name === 'air' || block.name === 'cave_air') {
+            continue;
+        }
+        await goToPosition(bot, block.position.x, block.position.y + 1, block.position.z, 0); // this will probably work most of the time but a custom mining and towering up implementation could be added if needed
+        log(bot, `Going to the surface at y=${y+1}.`);``
+        return true;
+    }
+    return false;
 }
 
 export async function useToolOn(bot, toolName, targetName) {
