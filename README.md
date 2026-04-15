@@ -1,60 +1,50 @@
-<h1 align="center">🧠mindcraft⛏️</h1>
-<h1 align="center">
-  <a href="https://trendshift.io/repositories/9163" target="_blank"><img src="https://trendshift.io/api/badge/repositories/9163" alt="kolbytn%2Fmindcraft | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</h1>
+# mindcraft
 
-<p align="center">Crafting minds for Minecraft with LLMs and <a href="https://prismarinejs.github.io/mineflayer/#/">Mineflayer!</a></p>
+LLM agents that play Minecraft, built on [mineflayer](https://prismarinejs.github.io/mineflayer/#/).
 
-<p align="center">
-  <a href="https://github.com/mindcraft-bots/mindcraft/blob/main/FAQ.md">FAQ</a> | 
-  <a href="https://discord.gg/mp73p35dzC">Discord Support</a> | 
-  <a href="https://www.youtube.com/watch?v=gRotoL8P8D8">Video Tutorial</a> | 
-  <a href="https://kolbynottingham.com/mindcraft/">Blog Post</a> | 
-  <a href="https://mindcraft-minecollab.github.io/index.html">Paper Website</a> | 
-  <a href="https://github.com/mindcraft-bots/mindcraft/blob/main/minecollab.md">MineCollab</a>
-</p>
+> [!Note]
+> This is an **unofficial fork** of [mindcraft-bots/mindcraft](https://github.com/mindcraft-bots/mindcraft) that packages it as an npm CLI with a browser-based setup. See [upstream issue #758](https://github.com/mindcraft-bots/mindcraft/issues/758) for context. All credit for the agent itself goes to the upstream authors.
 
 > [!Caution]
-Do not connect this bot to public servers with coding enabled. This project allows an LLM to write/execute code on your computer. The code is sandboxed, but still vulnerable to injection attacks. Code writing is disabled by default, you can enable it by setting `allow_insecure_coding` to `true` in `settings.js`. Ye be warned.
+> Don't connect to public servers with `allow_insecure_coding` enabled — it lets the LLM write and run code on your machine. It's off by default.
 
-# Getting Started
-## Requirements
+## Quick start
 
-- [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc) (up to v1.21.11, recommend v1.21.6)
-- [Node.js Installed](https://nodejs.org/) (Node v18 or v20 LTS recommended. Node v24+ may cause issues with native dependencies)
-- At least one API key from a supported API provider. See [supported APIs](#model-customization). OpenAI is the default.
+```bash
+npx mindcraft ui
+```
 
-> [!Important]
-> If installing node on windows, ensure you check `Automatically install the necessary tools`
->
-> If you encounter `npm install` errors on macOS, see the [FAQ](FAQ.md#common-issues) for troubleshooting native module build issues
+This opens a web UI where you set your Minecraft server address, add an API key, and create an agent. Settings are saved to `~/.config/mindcraft/` so subsequent runs pick up where you left off.
 
-## Install and Run
+You'll need:
+- [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc) (up to v1.21.11; v1.21.6 recommended), with a world open to LAN
+- [Node.js](https://nodejs.org/) 18 or 20 (v24+ may have native-dep issues)
+- An API key for one of the [supported providers](#supported-providers) (or a local Ollama model)
 
-1. Make sure you have the requirements above.
+For programmatic use:
 
-2. Download the [latest release](https://github.com/mindcraft-bots/mindcraft/releases/latest) and unzip it, or clone the repository.
+```js
+import { init, createAgent } from 'mindcraft';
+await init();
+await createAgent({ host: 'localhost', port: 25565, profile: { name: 'andy', model: 'gpt-4o-mini' } });
+```
 
-3. Rename `keys.example.json` to `keys.json` and fill in your API keys (you only need one). The desired model is set in `andy.json` or other profiles. For other models refer to the table below.
+## Running from a checkout
 
-4. In terminal/command prompt, run `npm install` from the installed directory
+If you want to hack on it, clone and `npm install`, start a Minecraft world open to LAN, then `node main.js`. Put API keys in `keys.json` (copy `keys.example.json`) and pick a profile in `settings.js`. The [FAQ](FAQ.md) covers common install errors.
 
-5. Start a minecraft world and open it to LAN on localhost port `55916`
+To run benchmark tasks: `node main.js --task_path tasks/basic/single_agent.json --task_id gather_oak_logs` — see [MineCollab](minecollab.md).
 
-6. Run `node main.js` from the installed directory
+## Configuration
 
-If you encounter issues, check the [FAQ](https://github.com/mindcraft-bots/mindcraft/blob/main/FAQ.md) or find support on [discord](https://discord.gg/mp73p35dzC). We are currently not very responsive to github issues. To run tasks please refer to [Minecollab Instructions](minecollab.md#installation)
+The `npx mindcraft` UI writes config to `~/.config/mindcraft/config.json` and `keys.json`. Don't edit `settings.js` — it's defaults only. To override from the shell, use `SETTINGS_JSON='{"host":"..."}' node main.js` or `--profiles ./foo.json`.
 
+Agent name, model and prompts live in a profile JSON (e.g. `andy.json`). The model can be a string like `"gpt-4o-mini"` or `"anthropic/claude-sonnet-4-6"`, or an object — see [Model Specifications](#model-specifications).
 
-# Configuration
-## Model Customization
-
-You can configure project details in `settings.js`. [See file.](settings.js)
-
-You can configure the agent's name, model, and prompts in their profile like `andy.json`. The model can be specified with the `model` field, with values like `model: "gemini-2.5-pro"`. You will need the correct API key for the API provider you choose. See all supported APIs below.
+## Supported providers
 
 <details>
-<summary><strong>⭐ VIEW SUPPORTED APIs ⭐</strong></summary>
+<summary>All supported APIs</summary>
 
 | API Name | Config Variable| Docs |
 |------|------|------|
@@ -87,59 +77,11 @@ To install our models, install ollama and run the following terminal command:
 ollama pull sweaterdog/andy-4:micro-q8_0 && ollama pull embeddinggemma
 ```
 
-## Online Servers
-To connect to online servers your bot will need an official Microsoft/Minecraft account. You can use your own personal one, but will need another account if you want to connect too and play with it. To connect, change these lines in `settings.js`:
-```javascript
-"host": "111.222.333.444",
-"port": 55920,
-"auth": "microsoft",
+## Online servers
 
-// rest is same...
-```
-> [!Important]
-> The bot's name in the profile.json must exactly match the Minecraft profile name! Otherwise the bot will spam talk to itself.
+To connect to an online server the agent needs a real Microsoft/Minecraft account. Set `auth: "microsoft"` in the Server panel (or your config). The agent's profile name must exactly match the Minecraft account's username, or it will talk to itself. Mindcraft uses whichever account is active in the Minecraft launcher; switch accounts there, start the agent, then switch back.
 
-To use different accounts, Mindcraft will connect with the account that the Minecraft launcher is currently using. You can switch accounts in the launcher, then run `node main.js`, then switch to your main account after the bot has connected.
-
-## Tasks
-
-Tasks automatically start the bot with a prompt and a goal item to acquire or blueprint to construct. To run a simple task that involves collecting 4 oak_logs run 
-
-`node main.js --task_path tasks/basic/single_agent.json --task_id gather_oak_logs`
-
-Here is an example task json format: 
-
-```
-{
-    "gather_oak_logs": {
-      "goal": "Collect at least four logs",
-      "initial_inventory": {
-        "0": {
-          "wooden_axe": 1
-        }
-      },
-      "agent_count": 1,
-      "target": "oak_log",
-      "number_of_target": 4,
-      "type": "techtree",
-      "max_depth": 1,
-      "depth": 0,
-      "timeout": 300,
-      "blocked_actions": {
-        "0": [],
-        "1": []
-      },
-      "missing_items": [],
-      "requires_ctable": false
-    }
-}
-```
-
-The `initial_inventory` is what the bot will have at the start of the episode, `target` refers to the target item and `number_of_target` refers to the number of target items the agent needs to collect to successfully complete the task. 
-
-If you want more optimization and automatic launching of the minecraft world, you will need to follow the instructions in [Minecollab Instructions](minecollab.md#installation)
-
-## Docker Container
+## Docker
 
 If you intend to `allow_insecure_coding`, it is a good idea to run the app in a docker container to reduce risks of running unknown code. This is strongly recommended before connecting to remote servers, although still does not guarantee complete safety.
 
@@ -151,21 +93,11 @@ or simply
 docker-compose up --build
 ```
 
-When running in docker, if you want the bot to join your local minecraft server, you have to use a special host address `host.docker.internal` to call your localhost from inside your docker container. Put this into your [settings.js](settings.js):
+When running in docker, use `host.docker.internal` instead of `localhost` to reach a Minecraft server on your host machine. For unsupported Minecraft versions, try [viaproxy](services/viaproxy/README.md).
 
-```javascript
-"host": "host.docker.internal", // instead of "localhost", to join your local minecraft from inside the docker container
-```
+# Profiles
 
-To connect to an unsupported minecraft version, you can try to use [viaproxy](services/viaproxy/README.md)
-
-# Bot Profiles
-
-Bot profiles are json files (such as `andy.json`) that define:
-
-1. Bot backend LLMs to use for talking, coding, and embedding.
-2. Prompts used to influence the bot's behavior.
-3. Examples help the bot perform tasks.
+A profile JSON (e.g. `andy.json`) defines the agent's name, which LLMs it uses for chat/coding/embedding, its prompts, and example conversations.
 
 ## Model Specifications
 
@@ -217,16 +149,9 @@ If you try to use an unsupported model, then it will default to a simple word-ov
 
 Voice synthesis models are used to narrate bot responses and specified with `speak_model`. This field is parsed differently than other models and only supports strings formatted as `"{api}/{model}/{voice}"`, like `"openai/tts-1/echo"`. We only support `openai` and `google` for voice synthesis.
 
-## Specifying Profiles via Command Line
-
-By default, the program will use the profiles specified in `settings.js`. You can specify one or more agent profiles using the `--profiles` argument: `node main.js --profiles ./profiles/andy.json ./profiles/jill.json`
-
-
 # Contributing
 
-We welcome contributions to the project! We are generally less responsive to github issues, and more responsive to pull requests. Join the [discord](https://discord.gg/mp73p35dzC) for more active support and direction.
-
-While AI generated code is allowed, please vet it carefully. Submitting tons of sloppy code and documentation actively harms development.
+Please contribute upstream at [mindcraft-bots/mindcraft](https://github.com/mindcraft-bots/mindcraft) — this fork tracks it. Join the upstream [discord](https://discord.gg/mp73p35dzC) for support.
 
 ## Patches
 
