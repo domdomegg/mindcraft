@@ -1,6 +1,6 @@
 {
     "name": "mindcraft",
-    "version": "0.1.4-0",
+    "version": "0.1.4-1",
     "type": "module",
     "publishConfig": {
         "tag": "latest"
@@ -65,8 +65,8 @@
         "node-canvas-webgl": "^0.3.0"
     },
     "overrides": {
-      "canvas": "^3.1.0",
-      "gl": "^8.1.6"
+        "canvas": "^3.1.0",
+        "gl": "^8.1.6"
     },
     "scripts": {
         "postinstall": "patch-package",
