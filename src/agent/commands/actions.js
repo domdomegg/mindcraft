@@ -447,6 +447,7 @@ export const actionsList = [
             if (direction !== 'at' && direction !== 'with') {
                 return "Invalid direction. Use 'at' or 'with'.";
             }
+            if (!agent.vision_interpreter) return "Vision is unavailable (optional native deps not built).";
             let result = "";
             const actionFn = async () => {
                 result = await agent.vision_interpreter.lookAtPlayer(player_name, direction);
@@ -464,6 +465,7 @@ export const actionsList = [
             'z': { type: 'int', description: 'z coordinate' }
         },
         perform: async function(agent, x, y, z) {
+            if (!agent.vision_interpreter) return "Vision is unavailable (optional native deps not built).";
             let result = "";
             const actionFn = async () => {
                 result = await agent.vision_interpreter.lookAtPosition(x, y, z);

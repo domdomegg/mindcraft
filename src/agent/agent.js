@@ -1,6 +1,5 @@
 import { History } from './history.js';
 import { Coder } from './coder.js';
-import { VisionInterpreter } from './vision/vision_interpreter.js';
 import { Prompter } from '../models/prompter.js';
 import { initModes } from './modes.js';
 import { initBot } from '../utils/mcdata.js';
@@ -111,7 +110,16 @@ export class Agent {
                 clearTimeout(spawnTimeout);
                 addBrowserViewer(this.bot, count_id);
                 console.log('Initializing vision intepreter...');
-                this.vision_interpreter = new VisionInterpreter(this, settings.allow_vision);
+                // VisionInterpreter -> camera.js -> node-canvas-webgl, whose native
+                // deps (gl, canvas) are optionalDependencies and may not have built.
+                // Import lazily so the bot still works without screenshot vision.
+                try {
+                    const { VisionInterpreter } = await import('./vision/vision_interpreter.js');
+                    this.vision_interpreter = new VisionInterpreter(this, settings.allow_vision);
+                } catch (e) {
+                    console.warn('Vision module unavailable (optional native deps not built):', e.message);
+                    this.vision_interpreter = null;
+                }
 
                 // wait for a bit so stats are not undefined
                 await new Promise((resolve) => setTimeout(resolve, 1000));
