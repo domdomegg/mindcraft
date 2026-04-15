@@ -356,6 +356,11 @@
         .panel-tabs .tab.done.active { background: #2196F3; color: #fff; }
         .setup-panel { display: none; }
         .setup-panel.active { display: block; }
+        .panel-desc {
+            color: #e0e0e0; line-height: 1.5; margin: 0 0 18px 0; font-size: 0.95em;
+        }
+        .config-path { font-size: 0.75em; color: #777; display: block; }
+        .config-path code { color: #888; }
         .provider-row {
             display: grid; grid-template-columns: 22px 150px 1fr; gap: 10px;
             align-items: center; padding: 6px 0; border-bottom: 1px solid #333;
@@ -411,6 +416,23 @@
         </div>
     </div>
 
+    <!-- Delete-agent confirmation -->
+    <div id="deleteAgentModal" class="modal-backdrop">
+        <div class="modal" style="max-width:440px;height:auto;">
+            <div class="modal-header">
+                <h2 style="margin:0;">Delete <span id="delAgentName"></span>?</h2>
+                <button class="modal-close-btn" onclick="document.getElementById('deleteAgentModal').style.display='none'">Close</button>
+            </div>
+            <div class="modal-body">
+                This removes its profile and history. It can't be undone.
+            </div>
+            <div class="modal-footer">
+                <button class="neutral-btn" onclick="document.getElementById('deleteAgentModal').style.display='none'">Cancel</button>
+                <button id="delAgentConfirmBtn" class="stop-btn">Delete agent</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Agent Settings Modal -->
     <div id="agentSettingsModal" class="modal-backdrop">
         <div class="modal">
@@ -447,12 +469,13 @@
                     <button class="tab" data-panel="providers">2. API providers</button>
                     <button class="tab" data-panel="agent">3. Agent</button>
                 </div>
-                <p class="hint" style="margin:0 0 16px 0;">
-                    Settings are saved to <code id="configRootPath">~/.config/mindcraft/</code>.
-                </p>
 
                 <!-- Server panel -->
                 <div class="setup-panel" data-panel="server">
+                    <p class="panel-desc">
+                        The Minecraft server your agents will join. For singleplayer, open your
+                        world to LAN (Esc → Open to LAN) and use the port it prints.
+                    </p>
                     <div class="wizard-row">
                         <div class="wizard-field">
                             <label>Host</label>
@@ -479,15 +502,20 @@
 
                 <!-- API providers panel -->
                 <div class="setup-panel" data-panel="providers">
-                    <p class="wizard-intro" style="margin-bottom:12px;">
-                        Enter keys for any providers you want to use. Agents can use different providers.
-                        Keys are written to <code>keys.json</code> (mode 0600) and only sent to that provider.
+                    <p class="panel-desc">
+                        API keys for the LLMs that power your agents. Enter keys for any providers
+                        you want — different agents can use different providers. Local models
+                        (Ollama, LM Studio, vLLM) need no key.
                     </p>
                     <div id="providerList"></div>
                 </div>
 
                 <!-- Agent panel -->
                 <div class="setup-panel" data-panel="agent">
+                    <p class="panel-desc">
+                        Create an agent: a named Minecraft player driven by an LLM. You can run
+                        several at once with different models.
+                    </p>
                     <div class="wizard-row">
                         <div class="wizard-field">
                             <label>Agent name</label>
@@ -534,7 +562,10 @@
                 <div id="setupError" style="color:#f44336;margin-top:10px;"></div>
             </div>
             <div class="modal-footer">
-                <div class="footer-left" id="setupHint"></div>
+                <div class="footer-left">
+                    <span id="setupHint"></span>
+                    <span class="config-path">Saved to <code id="configRootPath">~/.config/mindcraft/</code></span>
+                </div>
                 <button id="setupSaveBtn" class="start-btn">Save</button>
             </div>
         </div>
@@ -597,6 +628,7 @@
             let cfg = null;
             let firstRun = false;
             let uploadedProfile = null;
+            let editingAgent = null; // name of agent being edited, or null for create
 
             // Settings handled by the Server panel; everything else from
             // settings_spec goes under the Agent panel's Advanced section.
@@ -609,16 +641,12 @@
             function showPanel(name) {
                 tabs.forEach(t => t.classList.toggle('active', t.dataset.panel === name));
                 panels.forEach(p => p.classList.toggle('active', p.dataset.panel === name));
-                errEl.textContent = '';
-                if (name === 'server') {
-                    saveBtn.textContent = firstRun ? 'Save & continue' : 'Save';
-                    hintEl.textContent = 'Minecraft server the agents will join.';
-                } else if (name === 'providers') {
-                    saveBtn.textContent = firstRun ? 'Save & continue' : 'Save';
-                    hintEl.textContent = 'At least one provider (or a local model) is needed.';
+                errEl.textContent = ''; errEl.style.color = '#f44336';
+                hintEl.textContent = '';
+                if (name === 'agent') {
+                    saveBtn.textContent = editingAgent ? 'Save & restart' : 'Create agent';
                 } else {
-                    saveBtn.textContent = 'Create agent';
-                    hintEl.textContent = '';
+                    saveBtn.textContent = firstRun ? 'Save & continue' : 'Save';
                 }
             }
             function activePanel() {
@@ -667,7 +695,7 @@
                 }
             }
 
-            function renderAgent() {
+            function renderAgent(prefill) {
                 // provider dropdown: configured first
                 const sel = document.getElementById('agProvider');
                 sel.replaceChildren();
@@ -679,26 +707,46 @@
                     sel.appendChild(opt);
                 }
                 sel.onchange = () => populateModels(sel.value);
-                populateModels(sel.value);
 
                 // advanced form from settingsSpec (minus server + profile keys)
                 const adv = document.getElementById('agAdvancedForm');
                 adv.replaceChildren();
+                const advValues = prefill?.settings || {};
                 for (const [key, spec] of Object.entries(cfg.settingsSpec)) {
                     if (key === 'profile' || key === 'base_profile' || SERVER_KEYS.has(key)) continue;
+                    const v = key in advValues ? advValues[key] : spec.default;
                     const wrapper = document.createElement('div');
                     wrapper.className = 'setting-wrapper';
                     const label = document.createElement('label');
                     label.textContent = key;
                     label.title = spec.description || '';
                     let input = document.createElement('input');
-                    if (spec.type === 'boolean') { input.type = 'checkbox'; input.checked = spec.default === true; }
-                    else if (spec.type === 'number') { input.type = 'number'; input.value = spec.default; }
-                    else { input.type = 'text'; input.value = typeof spec.default === 'object' ? JSON.stringify(spec.default) : (spec.default ?? ''); }
+                    if (spec.type === 'boolean') { input.type = 'checkbox'; input.checked = v === true; }
+                    else if (spec.type === 'number') { input.type = 'number'; input.value = v; }
+                    else { input.type = 'text'; input.value = typeof v === 'object' ? JSON.stringify(v) : (v ?? ''); }
                     input.title = spec.description || '';
                     input.id = `ag-adv-${key}`;
                     wrapper.append(label, input);
                     adv.appendChild(wrapper);
+                }
+
+                if (prefill) {
+                    document.getElementById('agName').value = prefill.profile?.name || '';
+                    document.getElementById('agName').disabled = true; // name is the identity
+                    document.getElementById('agBaseProfile').value = prefill.base_profile || 'assistant';
+                    const m = prefill.profile?.model;
+                    const api = typeof m === 'object' ? m.api : undefined;
+                    if (api) sel.value = api;
+                    populateModels(sel.value);
+                    document.getElementById('agModel').value = typeof m === 'object' ? (m.model || '') : (m || '');
+                    document.getElementById('agPersonality').value =
+                        (prefill.profile?.conversing || '').replace(/\n\n\$ALL$/, '');
+                } else {
+                    document.getElementById('agName').value = 'andy';
+                    document.getElementById('agName').disabled = false;
+                    document.getElementById('agBaseProfile').value = 'assistant';
+                    document.getElementById('agPersonality').value = '';
+                    populateModels(sel.value);
                 }
             }
             function populateModels(api) {
@@ -768,6 +816,10 @@
                 const agents = (cfg.config?.agents || []).filter(a => a.profile !== profile.name);
                 agents.push({ profile: profile.name, base_profile, settings: advanced });
                 await emit('save-config', { agents });
+                if (editingAgent) {
+                    // tear down the old process (it may be stuck connecting) before recreating
+                    await new Promise(r => { socket.emit('destroy-agent', editingAgent); setTimeout(r, 200); });
+                }
                 await emit('create-agent', {
                     ...(cfg.config?.server || {}),
                     ...advanced,
@@ -796,13 +848,25 @@
             }
 
             async function open(panel) {
+                editingAgent = null;
                 await refresh();
                 if (cfg.paths?.root) document.getElementById('configRootPath').textContent = cfg.paths.root + '/';
                 renderServer(); renderProviders(); renderAgent();
                 showPanel(panel || 'server');
                 modal.style.display = 'flex';
             }
-            function close() { modal.style.display = 'none'; firstRun = false; uploadedProfile = null; }
+            async function edit(name) {
+                await refresh();
+                if (cfg.paths?.root) document.getElementById('configRootPath').textContent = cfg.paths.root + '/';
+                const saved = (cfg.config?.agents || []).find(a => a.profile === name);
+                const profile = (cfg.profiles || []).find(p => p.name === name);
+                editingAgent = name;
+                renderServer(); renderProviders();
+                renderAgent({ profile, base_profile: saved?.base_profile, settings: saved?.settings });
+                showPanel('agent');
+                modal.style.display = 'flex';
+            }
+            function close() { modal.style.display = 'none'; firstRun = false; uploadedProfile = null; editingAgent = null; }
 
             async function maybeAutoOpen() {
                 await refresh();
@@ -827,7 +891,7 @@
             });
             socket.on('connect', maybeAutoOpen);
 
-            return { open, close };
+            return { open, edit, close };
         })();
         window.setup = setup;
 
@@ -1130,15 +1194,17 @@
                         </div>
                         <div class="controls-row">
                             <button class="start-btn" id="sendBtn-${agent.name}" disabled onclick="sendMessage('${agent.name}', document.getElementById('messageInput-${agent.name}').value)">Send</button>
-                            <input class="msg-input" type="text" id="messageInput-${agent.name}" placeholder="Enter message..." 
+                            <input class="msg-input" type="text" id="messageInput-${agent.name}" placeholder="Enter message..."
                                 oninput="onMsgInputChange('${agent.name}')"
                                 onkeydown="if(event.key === 'Enter') document.getElementById('sendBtn-${agent.name}').click()"
                                 ${!agent.in_game ? 'disabled' : ''}>
-                            <button class="neutral-btn" onclick="sendMessage('${agent.name}', '!stop')" ${!agent.in_game ? 'disabled' : ''}>Stop Action</button>
-                            <button class="neutral-btn" onclick="sendMessage('${agent.name}', '!stay(-1)')" ${!agent.in_game ? 'disabled' : ''}>Stay Still</button>
-                            <button class="neutral-btn" onclick="restartAgent('${agent.name}')" ${!agent.in_game ? 'disabled' : ''}>Restart</button>
-                            <button class="neutral-btn" ${agent.in_game ? `onclick=\"disconnectAgent('${agent.name}')\"` : (agent.socket_connected ? 'disabled' : `onclick=\"startAgent('${agent.name}')\"`)}>${agent.in_game ? 'Disconnect' : (agent.socket_connected ? 'Connecting...' : 'Connect')}</button>
-                            <button class="stop-btn" onclick="destroyAgent('${agent.name}')">Remove</button>
+                            <button class="neutral-btn" onclick="sendMessage('${agent.name}', '!stop')" ${!agent.in_game ? 'disabled' : ''}>Stop action</button>
+                            <button class="neutral-btn" onclick="sendMessage('${agent.name}', '!stay(-1)')" ${!agent.in_game ? 'disabled' : ''}>Stay still</button>
+                            <button class="neutral-btn" onclick="setup.edit('${agent.name}')">Edit</button>
+                            ${agent.in_game || agent.socket_connected
+                                ? `<button class="neutral-btn" onclick="disconnectAgent('${agent.name}')">${agent.in_game ? 'Disconnect' : 'Stop'}</button>`
+                                : `<button class="neutral-btn" onclick="startAgent('${agent.name}')">Connect</button>`}
+                            <button class="stop-btn" onclick="confirmDeleteAgent('${agent.name}')">Delete agent</button>
                         </div>
                     </div>`;
         }
@@ -1276,6 +1342,16 @@
             socket.emit('delete-profile', n, () => {});
             delete agentLogs[n]; delete logOpen[n];
         }
+        function confirmDeleteAgent(n) {
+            document.getElementById('delAgentName').textContent = n;
+            const btn = document.getElementById('delAgentConfirmBtn');
+            btn.onclick = () => {
+                destroyAgent(n);
+                document.getElementById('deleteAgentModal').style.display = 'none';
+            };
+            document.getElementById('deleteAgentModal').style.display = 'flex';
+        }
+        window.confirmDeleteAgent = confirmDeleteAgent;
         function disconnectAllAgents() { 
             socket.emit('stop-all-agents'); 
         }
