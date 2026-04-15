@@ -35,9 +35,15 @@ class AgentConnection {
         this.in_game = false;
         this.full_state = null;
         this.viewer_port = viewer_port;
+        this.viewer_error = null;
+        this.log = [];
     }
     setSettings(settings) {
         this.settings = settings;
+    }
+    appendLog(entry) {
+        this.log.push({ ...entry, ts: Date.now() });
+        if (this.log.length > 500) this.log.shift();
     }
 }
 
@@ -218,7 +224,24 @@ export function createMindServer(host_public = false, port = 8080) {
 		});
 
         socket.on('bot-output', (agentName, message) => {
+            agent_connections[agentName]?.appendLog({ role: 'bot', text: message });
             io.emit('bot-output', agentName, message);
+        });
+
+        socket.on('agent-log', (agentName, entry) => {
+            agent_connections[agentName]?.appendLog(entry);
+            io.emit('agent-log', agentName, entry);
+        });
+
+        socket.on('get-agent-log', (agentName, callback) => {
+            callback({ log: agent_connections[agentName]?.log || [] });
+        });
+
+        socket.on('viewer-status', (agentName, status) => {
+            if (agent_connections[agentName]) {
+                agent_connections[agentName].viewer_error = status.error || null;
+                agentsStatusUpdate();
+            }
         });
 
         socket.on('listen-to-agents', () => {
@@ -278,9 +301,10 @@ function agentsStatusUpdate(socket) {
     for (let agentName in agent_connections) {
         const conn = agent_connections[agentName];
         agents.push({
-            name: agentName, 
+            name: agentName,
             in_game: conn.in_game,
             viewerPort: conn.viewer_port,
+            viewerError: conn.viewer_error,
             socket_connected: !!conn.socket
         });
     };

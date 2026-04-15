@@ -1,3 +1,13 @@
+// Default settings for the `node main.js` entrypoint.
+//
+// DON'T EDIT THIS FILE for local config — that just dirties your git checkout.
+// Instead, override via:
+//   - `npx mindcraft ui` (writes ~/.config/mindcraft/config.json), or
+//   - the SETTINGS_JSON env var: SETTINGS_JSON='{"host":"..."}' node main.js, or
+//   - CLI flags: node main.js --profiles ./foo.json
+//
+// The web UI / `npx mindcraft` flow does not read this file at all; it uses
+// settings_spec.json defaults overlaid with ~/.config/mindcraft/config.json.
 const settings = {
     "minecraft_version": "auto", // or specific version like "1.21.6"
     "host": "127.0.0.1", // or "localhost", "your.ip.address.here"

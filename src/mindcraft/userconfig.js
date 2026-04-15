@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, chmodSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, chmodSync, unlinkSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -36,6 +36,19 @@ export function saveConfig(config) {
     writeJson(CONFIG_PATH, config);
 }
 
+// Shallow-merge a partial config into the stored one (so the three setup
+// panels — server / providers / agents — can save independently).
+export function mergeConfig(partial) {
+    const existing = readJson(CONFIG_PATH) || {};
+    const merged = { ...existing, ...partial };
+    writeJson(CONFIG_PATH, merged);
+    return merged;
+}
+
+export function getKeys() {
+    return readJson(KEYS_PATH) || {};
+}
+
 export function hasKeys() {
     const k = readJson(KEYS_PATH);
     return !!k && Object.values(k).some(v => v);
@@ -69,4 +82,9 @@ export function saveProfile(profile) {
     if (!profile?.name) throw new Error('profile.name is required');
     mkdirSync(PROFILES_DIR, { recursive: true });
     writeJson(join(PROFILES_DIR, `${profile.name}.json`), profile);
+}
+
+export function deleteProfile(name) {
+    const p = join(PROFILES_DIR, `${name}.json`);
+    if (existsSync(p)) unlinkSync(p);
 }

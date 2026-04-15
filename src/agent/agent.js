@@ -108,7 +108,11 @@ export class Agent {
         this.bot.once('spawn', async () => {
             try {
                 clearTimeout(spawnTimeout);
-                addBrowserViewer(this.bot, count_id);
+                const viewer = await addBrowserViewer(this.bot, count_id);
+                if (viewer.error) {
+                    serverProxy.getSocket()?.emit('viewer-status', this.name, { error: viewer.error });
+                    sendOutputToServer(this.name, `Viewer unavailable: ${viewer.error}`);
+                }
                 console.log('Initializing vision intepreter...');
                 // VisionInterpreter -> camera.js -> node-canvas-webgl, whose native
                 // deps (gl, canvas) are optionalDependencies and may not have built.
