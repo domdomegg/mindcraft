@@ -2,6 +2,9 @@
     "name": "mindcraft",
     "version": "0.1.4-0",
     "type": "module",
+    "publishConfig": {
+        "tag": "latest"
+    },
     "main": "./src/mindcraft/index.js",
     "exports": {
         ".": "./src/mindcraft/index.js",
