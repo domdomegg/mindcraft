@@ -2,15 +2,16 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { homedir } from 'os';
 
-// Lookup order: ./keys.json (repo-local), then ~/.mindcraft/keys.json
+// Lookup order: ./keys.json (repo-local), then $XDG_CONFIG_HOME/mindcraft/keys.json
 // (written by the web UI's setup wizard), then environment variables.
 function tryRead(p) {
     try { return JSON.parse(readFileSync(p, 'utf8')); }
     catch { return null; }
 }
 
+const configHome = process.env.XDG_CONFIG_HOME || path.join(homedir(), '.config');
 const local = tryRead(path.join(process.cwd(), 'keys.json'));
-const user = tryRead(path.join(homedir(), '.mindcraft', 'keys.json'));
+const user = tryRead(path.join(configHome, 'mindcraft', 'keys.json'));
 const keys = { ...(user || {}), ...(local || {}) };
 
 if (!local && !user) {

@@ -2,15 +2,19 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, chmodS
 import { homedir } from 'os';
 import { join } from 'path';
 
-// ~/.mindcraft persistence layer used by the web UI's setup wizard.
+// Persistence layer used by the web UI's setup wizard.
 // Keeps API keys, server config, and saved profiles across restarts.
+// Follows the XDG base-dir convention: $XDG_CONFIG_HOME/mindcraft, falling
+// back to ~/.config/mindcraft.
 
-const ROOT = join(homedir(), '.mindcraft');
+const CONFIG_HOME = process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
+const ROOT = join(CONFIG_HOME, 'mindcraft');
 const CONFIG_PATH = join(ROOT, 'config.json');
 const KEYS_PATH = join(ROOT, 'keys.json');
 const PROFILES_DIR = join(ROOT, 'profiles');
+const BOTS_DIR = join(ROOT, 'bots');
 
-export const paths = { ROOT, CONFIG_PATH, KEYS_PATH, PROFILES_DIR };
+export const paths = { ROOT, CONFIG_PATH, KEYS_PATH, PROFILES_DIR, BOTS_DIR };
 
 function readJson(path) {
     if (!existsSync(path)) return null;

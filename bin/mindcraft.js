@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import { init, createAgent } from '../src/mindcraft/mindcraft.js';
 import { overrideSpecDefaults } from '../src/mindcraft/mindserver.js';
 import * as userconfig from '../src/mindcraft/userconfig.js';
@@ -17,16 +15,18 @@ Commands:
 
 Options:
   --port <n>        Web UI port                       [default: 8080]
-  --data-dir <dir>  Where bot memories/histories live [default: ~/.mindcraft/bots]
+  --data-dir <dir>  Where bot memories/histories live [default: ~/.config/mindcraft/bots]
   --no-open         Don't auto-open the browser
   -h, --help        Show this help
+
+Config is stored under $XDG_CONFIG_HOME/mindcraft (default ~/.config/mindcraft).
 `.trim();
 
 function parseArgs(argv) {
     const opts = {
         cmd: 'ui',
         port: 8080,
-        dataDir: join(homedir(), '.mindcraft', 'bots'),
+        dataDir: userconfig.paths.BOTS_DIR,
         open: true,
     };
     for (let i = 0; i < argv.length; i++) {
@@ -45,7 +45,7 @@ async function main() {
     const opts = parseArgs(process.argv.slice(2));
     if (opts.cmd !== 'ui') return;
 
-    // Load persisted config from ~/.mindcraft so a restart picks up where the
+    // Load persisted config from ~/.config/mindcraft so a restart picks up where the
     // wizard left off: keys → process.env, server settings → spec defaults,
     // saved bots → recreated.
     userconfig.loadKeysIntoEnv();
