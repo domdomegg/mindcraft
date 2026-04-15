@@ -46,34 +46,39 @@ async function main() {
     if (opts.cmd !== 'ui') return;
 
     // Load persisted config from ~/.config/mindcraft so a restart picks up where the
-    // wizard left off: keys → process.env, server settings → spec defaults,
-    // saved bots → recreated.
+    // setup panels left off: keys → process.env, server + settings → spec defaults,
+    // saved agents → recreated. Merge order is settings_spec.json defaults
+    // ← config.settings ← config.server ← per-agent overrides.
     userconfig.loadKeysIntoEnv();
     const config = userconfig.getConfig();
     overrideSpecDefaults({
         data_dir: opts.dataDir,
+        ...(config?.settings || {}),
         ...(config?.server || {}),
     });
 
     await init(false, opts.port, opts.open);
     console.log(`\nMindcraft UI: http://localhost:${opts.port}`);
-    console.log(`Bot data dir: ${opts.dataDir}`);
+    console.log(`Agent data dir: ${opts.dataDir}`);
 
-    if (config?.bots?.length) {
+    const agents = config?.agents || config?.bots; // .bots = legacy key
+    if (agents?.length) {
         const profiles = Object.fromEntries(userconfig.listProfiles().map(p => [p.name, p]));
-        for (const bot of config.bots) {
-            const profile = profiles[bot.profile];
-            if (!profile) { console.warn(`Skipping bot "${bot.profile}": profile not found`); continue; }
-            console.log(`Restoring bot: ${bot.profile}`);
+        for (const a of agents) {
+            const profile = profiles[a.profile];
+            if (!profile) { console.warn(`Skipping agent "${a.profile}": profile not found`); continue; }
+            console.log(`Restoring agent: ${a.profile}`);
             await createAgent({
+                ...(config.settings || {}),
                 ...(config.server || {}),
+                ...(a.settings || {}),
                 data_dir: opts.dataDir,
-                base_profile: bot.base_profile || 'assistant',
+                base_profile: a.base_profile || 'assistant',
                 profile,
             });
         }
     } else {
-        console.log(`No saved bots — open the UI to run setup.\n`);
+        console.log(`No saved agents — open the UI to run setup.\n`);
     }
 }
 

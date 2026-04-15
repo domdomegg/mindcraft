@@ -11,7 +11,7 @@ import { SelfPrompter } from './self_prompter.js';
 import convoManager from './conversation.js';
 import { handleTranslation, handleEnglishTranslation } from '../utils/translator.js';
 import { addBrowserViewer } from './vision/browser_viewer.js';
-import { serverProxy, sendOutputToServer } from './mindserver_proxy.js';
+import { serverProxy, sendOutputToServer, sendLogToServer } from './mindserver_proxy.js';
 import settings from './settings.js';
 import { Task } from './tasks/tasks.js';
 import { speak } from './speak.js';
@@ -307,6 +307,7 @@ export class Agent {
         // Now translate the message
         message = await handleEnglishTranslation(message);
         console.log('received message from', source, ':', message);
+        sendLogToServer(this.name, self_prompt ? 'thinking' : 'user', `${source}: ${message}`);
 
         const checkInterrupt = () => this.self_prompter.shouldInterrupt(self_prompt) || this.shut_up || convoManager.responseScheduledFor(source);
         
@@ -332,6 +333,7 @@ export class Agent {
             let res = await this.prompter.promptConvo(history);
 
             console.log(`${this.name} full response to ${source}: ""${res}""`);
+            sendLogToServer(this.name, 'thinking', res);
 
             if (res.trim().length === 0) {
                 console.warn('no response')

@@ -134,3 +134,9 @@ export function sendBotChatToServer(agentName, json) {
 export function sendOutputToServer(agentName, message) {
     serverProxy.getSocket().emit('bot-output', agentName, message);
 }
+
+// structured conversation log for the UI's per-agent log panel
+// role: 'user' | 'bot' | 'thinking' | 'error'
+export function sendLogToServer(agentName, role, text) {
+    serverProxy.getSocket()?.emit('agent-log', agentName, { role, text });
+}
