@@ -1,20 +1,28 @@
 import settings from '../settings.js';
+import net from 'net';
 
-// prismarine-viewer starts an express server on a fixed port. If the port is
-// busy (or the optional native deps didn't build), the unhandled error would
-// otherwise crash the agent process. Import lazily and swallow errors so the
-// agent keeps running without a viewer.
+// prismarine-viewer starts an express server on a fixed port and doesn't expose
+// the http.Server, so an EADDRINUSE becomes an uncaught exception that kills
+// the agent process. Probe the port first, and lazy-import so missing optional
+// native deps also degrade to "no viewer" instead of crashing.
+function portFree(port) {
+    return new Promise((resolve) => {
+        const s = net.createServer()
+            .once('error', () => resolve(false))
+            .once('listening', () => s.close(() => resolve(true)))
+            .listen(port, '127.0.0.1');
+    });
+}
+
 export async function addBrowserViewer(bot, count_id) {
     if (!settings.render_bot_view) return { ok: false, disabled: true };
     const port = 3000 + count_id;
     try {
+        if (!(await portFree(port))) {
+            throw new Error(`port ${port} is already in use`);
+        }
         const { default: prismarineViewer } = await import('prismarine-viewer');
         prismarineViewer.mineflayer(bot, { port, firstPerson: true });
-        // The underlying http server emits 'error' asynchronously (e.g. EADDRINUSE).
-        // prismarine-viewer attaches it to bot.viewer; guard the listen error there.
-        bot.viewer?.app?.on?.('error', (err) => {
-            console.warn(`prismarine-viewer server error on port ${port}:`, err.message);
-        });
         return { ok: true, port };
     } catch (err) {
         console.warn(`prismarine-viewer unavailable (port ${port}):`, err.message);
