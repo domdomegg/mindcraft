@@ -4,6 +4,11 @@
         "required": true,
         "description": "The profile object to use, including name, prompts, and examples"
     },
+    "data_dir": {
+        "type": "string",
+        "description": "Directory where bot memories, histories, screenshots, and generated code are written",
+        "default": "./bots"
+    },
     "minecraft_version": {
         "type": "string",
         "description": "The version of Minecraft to use. Set to 'auto' to automatically detect the version.",

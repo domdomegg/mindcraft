@@ -7,10 +7,11 @@ export class History {
     constructor(agent) {
         this.agent = agent;
         this.name = agent.name;
-        this.memory_fp = `./bots/${this.name}/memory.json`;
+        this.bot_dir = `${settings.data_dir}/${this.name}`;
+        this.memory_fp = `${this.bot_dir}/memory.json`;
         this.full_history_fp = undefined;
 
-        mkdirSync(`./bots/${this.name}/histories`, { recursive: true });
+        mkdirSync(`${this.bot_dir}/histories`, { recursive: true });
 
         this.turns = [];
 
@@ -45,7 +46,7 @@ export class History {
     async appendFullHistory(to_store) {
         if (this.full_history_fp === undefined) {
             const string_timestamp = new Date().toLocaleString().replace(/[/:]/g, '-').replace(/ /g, '').replace(/,/g, '_');
-            this.full_history_fp = `./bots/${this.name}/histories/${string_timestamp}.json`;
+            this.full_history_fp = `${this.bot_dir}/histories/${string_timestamp}.json`;
             writeFileSync(this.full_history_fp, '[]', 'utf8');
         }
         try {

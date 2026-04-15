@@ -1,27 +1,32 @@
 import { writeFile, readFile, mkdirSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { makeCompartment, lockdown } from './library/lockdown.js';
 import * as skills from './library/skills.js';
 import * as world from './library/world.js';
 import { Vec3 } from 'vec3';
 import {ESLint} from "eslint";
+import settings from './settings.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class Coder {
     constructor(agent) {
         this.agent = agent;
         this.file_counter = 0;
-        this.fp = '/bots/'+agent.name+'/action-code/';
+        this.fp = path.join(settings.data_dir, agent.name, 'action-code') + path.sep;
         this.code_template = '';
         this.code_lint_template = '';
 
-        readFile('./bots/execTemplate.js', 'utf8', (err, data) => {
+        readFile(path.join(__dirname, 'templates/execTemplate.js'), 'utf8', (err, data) => {
             if (err) throw err;
             this.code_template = data;
         });
-        readFile('./bots/lintTemplate.js', 'utf8', (err, data) => {
+        readFile(path.join(__dirname, 'templates/lintTemplate.js'), 'utf8', (err, data) => {
             if (err) throw err;
             this.code_lint_template = data;
         });
-        mkdirSync('.' + this.fp, { recursive: true });
+        mkdirSync(this.fp, { recursive: true });
     }
 
     async generateCode(agent_history) {
@@ -178,7 +183,7 @@ export class Coder {
         // } commented for now, useful to keep files for debugging
         this.file_counter++;
         
-        let write_result = await this._writeFilePromise('.' + this.fp + filename, src);
+        let write_result = await this._writeFilePromise(this.fp + filename, src);
         // This is where we determine the environment the agent's code should be exposed to.
         // It will only have access to these things, (in addition to basic javascript objects like Array, Object, etc.)
         // Note that the code may be able to modify the exposed objects.

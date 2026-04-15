@@ -2,8 +2,11 @@
 // Qwen is also compatible with the OpenAI API format;
 
 import OpenAIApi from 'openai';
+import path from 'path';
+import { promises as fs } from 'fs';
 import { getKey, hasKey } from '../utils/keys.js';
 import { strictFormat } from '../utils/text.js';
+import settings from '../agent/settings.js';
 
 export class VLLM {
     static prefix = 'vllm';
@@ -64,9 +67,9 @@ export class VLLM {
         console.log(task_id)
         let logDir;
         if (this.task_id === null) {
-            logDir = path.join(__dirname, `../../bots/${this.agent.name}/logs`);
+            logDir = path.join(settings.data_dir, this.agent.name, 'logs');
         } else {
-            logDir = path.join(__dirname, `../../bots/${this.agent.name}/logs/${task_id}`);
+            logDir = path.join(settings.data_dir, this.agent.name, 'logs', task_id);
         }
 
         await fs.mkdir(logDir, { recursive: true });

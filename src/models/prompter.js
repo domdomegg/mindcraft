@@ -17,16 +17,17 @@ export class Prompter {
     constructor(agent, profile) {
         this.agent = agent;
         this.profile = profile;
-        let default_profile = JSON.parse(readFileSync('./profiles/defaults/_default.json', 'utf8'));
+        const defaults_dir = path.join(__dirname, '../../profiles/defaults');
+        let default_profile = JSON.parse(readFileSync(path.join(defaults_dir, '_default.json'), 'utf8'));
         let base_fp = '';
         if (settings.base_profile.includes('survival')) {
-            base_fp = './profiles/defaults/survival.json';
+            base_fp = path.join(defaults_dir, 'survival.json');
         } else if (settings.base_profile.includes('assistant')) {
-            base_fp = './profiles/defaults/assistant.json';
+            base_fp = path.join(defaults_dir, 'assistant.json');
         } else if (settings.base_profile.includes('creative')) {
-            base_fp = './profiles/defaults/creative.json';
+            base_fp = path.join(defaults_dir, 'creative.json');
         } else if (settings.base_profile.includes('god_mode')) {
-            base_fp = './profiles/defaults/god_mode.json';
+            base_fp = path.join(defaults_dir, 'god_mode.json');
         }
         let base_profile = JSON.parse(readFileSync(base_fp, 'utf8'));
 
@@ -91,8 +92,8 @@ export class Prompter {
         }
 
         this.skill_libary = new SkillLibrary(agent, this.embedding_model);
-        mkdirSync(`./bots/${name}`, { recursive: true });
-        writeFileSync(`./bots/${name}/last_profile.json`, JSON.stringify(this.profile, null, 4), (err) => {
+        mkdirSync(`${settings.data_dir}/${name}`, { recursive: true });
+        writeFileSync(`${settings.data_dir}/${name}/last_profile.json`, JSON.stringify(this.profile, null, 4), (err) => {
             if (err) {
                 throw new Error('Failed to save profile:', err);
             }
@@ -352,9 +353,9 @@ export class Prompter {
         let task_id = this.agent.task.task_id;
         let logDir;
         if (task_id == null) {
-            logDir = path.join(__dirname, `../../bots/${this.agent.name}/logs`);
+            logDir = path.join(settings.data_dir, this.agent.name, 'logs');
         } else {
-            logDir = path.join(__dirname, `../../bots/${this.agent.name}/logs/${task_id}`);
+            logDir = path.join(settings.data_dir, this.agent.name, 'logs', task_id);
         }
 
         await fs.mkdir(logDir, { recursive: true });

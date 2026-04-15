@@ -1,8 +1,9 @@
 import { readFileSync } from 'fs';
+import path from 'path';
 
 let keys = {};
 try {
-    const data = readFileSync('./keys.json', 'utf8');
+    const data = readFileSync(path.join(process.cwd(), 'keys.json'), 'utf8');
     keys = JSON.parse(data);
 } catch (err) {
     console.warn('keys.json not found. Defaulting to environment variables.'); // still works with local models
