@@ -4,6 +4,7 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as mindcraft from './mindcraft.js';
+import * as userconfig from './userconfig.js';
 import { readFileSync } from 'fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -222,6 +223,39 @@ export function createMindServer(host_public = false, port = 8080) {
 
         socket.on('listen-to-agents', () => {
             addListener(socket);
+        });
+
+        // ---- setup wizard / persistence ----
+
+        socket.on('get-config', (callback) => {
+            callback({
+                config: userconfig.getConfig(),
+                hasKeys: userconfig.hasKeys(),
+                profiles: userconfig.listProfiles(),
+                settingsSpec: settings_spec,
+            });
+        });
+
+        socket.on('save-keys', (keys, callback) => {
+            try { userconfig.saveKeys(keys); callback({ success: true }); }
+            catch (e) { callback({ success: false, error: e.message }); }
+        });
+
+        socket.on('save-config', (config, callback) => {
+            try {
+                userconfig.saveConfig(config);
+                if (config.server) overrideSpecDefaults(config.server);
+                callback({ success: true });
+            } catch (e) { callback({ success: false, error: e.message }); }
+        });
+
+        socket.on('save-profile', (profile, callback) => {
+            try { userconfig.saveProfile(profile); callback({ success: true }); }
+            catch (e) { callback({ success: false, error: e.message }); }
+        });
+
+        socket.on('list-profiles', (callback) => {
+            callback({ profiles: userconfig.listProfiles() });
         });
     });
 

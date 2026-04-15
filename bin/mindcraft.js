@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { init } from '../src/mindcraft/mindcraft.js';
+import { init, createAgent } from '../src/mindcraft/mindcraft.js';
 import { overrideSpecDefaults } from '../src/mindcraft/mindserver.js';
+import * as userconfig from '../src/mindcraft/userconfig.js';
 
 const HELP = `
 mindcraft — LLM agents for Minecraft
@@ -42,12 +43,37 @@ function parseArgs(argv) {
 
 async function main() {
     const opts = parseArgs(process.argv.slice(2));
+    if (opts.cmd !== 'ui') return;
 
-    if (opts.cmd === 'ui') {
-        overrideSpecDefaults({ data_dir: opts.dataDir });
-        await init(false, opts.port, opts.open);
-        console.log(`\nMindcraft UI: http://localhost:${opts.port}`);
-        console.log(`Bot data dir: ${opts.dataDir}\n`);
+    // Load persisted config from ~/.mindcraft so a restart picks up where the
+    // wizard left off: keys → process.env, server settings → spec defaults,
+    // saved bots → recreated.
+    userconfig.loadKeysIntoEnv();
+    const config = userconfig.getConfig();
+    overrideSpecDefaults({
+        data_dir: opts.dataDir,
+        ...(config?.server || {}),
+    });
+
+    await init(false, opts.port, opts.open);
+    console.log(`\nMindcraft UI: http://localhost:${opts.port}`);
+    console.log(`Bot data dir: ${opts.dataDir}`);
+
+    if (config?.bots?.length) {
+        const profiles = Object.fromEntries(userconfig.listProfiles().map(p => [p.name, p]));
+        for (const bot of config.bots) {
+            const profile = profiles[bot.profile];
+            if (!profile) { console.warn(`Skipping bot "${bot.profile}": profile not found`); continue; }
+            console.log(`Restoring bot: ${bot.profile}`);
+            await createAgent({
+                ...(config.server || {}),
+                data_dir: opts.dataDir,
+                base_profile: bot.base_profile || 'assistant',
+                profile,
+            });
+        }
+    } else {
+        console.log(`No saved bots — open the UI to run setup.\n`);
     }
 }
 

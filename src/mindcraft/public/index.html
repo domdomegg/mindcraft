@@ -306,6 +306,45 @@
             border-top: 1px solid #3a3a3a;
         }
         .footer-left { color: #cccccc; font-style: italic; }
+        /* Setup wizard */
+        .wizard-steps {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            font-size: 0.85em;
+        }
+        .wizard-steps .step {
+            flex: 1;
+            padding: 6px 8px;
+            background: #3a3a3a;
+            border-radius: 4px;
+            text-align: center;
+            color: #888;
+        }
+        .wizard-steps .step.active { background: #2196F3; color: #fff; }
+        .wizard-steps .step.done { background: #4CAF50; color: #fff; }
+        .wizard-screen { display: none; }
+        .wizard-screen.active { display: block; }
+        .wizard-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 14px;
+        }
+        .wizard-field label { font-size: 0.9em; color: #ccc; }
+        .wizard-field input, .wizard-field select, .wizard-field textarea {
+            background: #262626;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+        .wizard-field .hint { font-size: 0.8em; color: #888; }
+        .wizard-row { display: flex; gap: 12px; }
+        .wizard-row .wizard-field { flex: 1; }
+        .wizard-intro { color: #ccc; line-height: 1.5; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -315,6 +354,7 @@
             <span id="msStatus" class="status-badge offline">mindserver offline</span>
         </div>
         <div class="title-spacer"></div>
+        <button id="openSetupBtn" class="neutral-btn">⚙ Setup</button>
     </div>
     <div id="agents"></div>
 
@@ -376,6 +416,119 @@
         </div>
     </div>
 
+    <!-- Setup wizard -->
+    <div id="setupWizardModal" class="modal-backdrop">
+        <div class="modal" style="max-width: 720px; height: auto; max-height: 80vh;">
+            <div class="modal-header">
+                <h2 style="margin:0;">Setup</h2>
+                <button id="closeSetupBtn" class="modal-close-btn">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="wizard-steps">
+                    <div class="step" data-step="0">Welcome</div>
+                    <div class="step" data-step="1">API key</div>
+                    <div class="step" data-step="2">Server</div>
+                    <div class="step" data-step="3">Bot</div>
+                    <div class="step" data-step="4">Launch</div>
+                </div>
+
+                <div class="wizard-screen" data-screen="0">
+                    <p class="wizard-intro">
+                        Mindcraft connects an LLM-powered agent to your Minecraft server.
+                        This wizard will collect your API key, server address, and bot
+                        settings, save them to <code>~/.mindcraft/</code>, and launch the bot.
+                    </p>
+                    <div class="wizard-field">
+                        <label>LLM provider</label>
+                        <select id="wizProvider">
+                            <option value="ANTHROPIC_API_KEY" selected>Anthropic (Claude)</option>
+                            <option value="OPENAI_API_KEY">OpenAI</option>
+                            <option value="GEMINI_API_KEY">Google Gemini</option>
+                            <option value="GROQCLOUD_API_KEY">Groq</option>
+                            <option value="REPLICATE_API_KEY">Replicate</option>
+                            <option value="OPENROUTER_API_KEY">OpenRouter</option>
+                        </select>
+                        <span class="hint">Determines which API key you'll enter next, and the model list.</span>
+                    </div>
+                </div>
+
+                <div class="wizard-screen" data-screen="1">
+                    <div class="wizard-field">
+                        <label id="wizKeyLabel">ANTHROPIC_API_KEY</label>
+                        <input id="wizApiKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+                        <span class="hint">Stored to <code>~/.mindcraft/keys.json</code> (mode 0600). Never sent anywhere except your chosen provider.</span>
+                    </div>
+                </div>
+
+                <div class="wizard-screen" data-screen="2">
+                    <div class="wizard-row">
+                        <div class="wizard-field">
+                            <label>Host</label>
+                            <input id="wizHost" type="text" value="localhost">
+                        </div>
+                        <div class="wizard-field" style="max-width:140px;">
+                            <label>Port</label>
+                            <input id="wizPort" type="number" value="25565">
+                        </div>
+                    </div>
+                    <div class="wizard-row">
+                        <div class="wizard-field">
+                            <label>Auth</label>
+                            <select id="wizAuth">
+                                <option value="offline" selected>offline</option>
+                                <option value="microsoft">microsoft</option>
+                            </select>
+                        </div>
+                        <div class="wizard-field">
+                            <label>Minecraft version</label>
+                            <input id="wizVersion" type="text" value="auto">
+                            <span class="hint">"auto" detects from the server.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wizard-screen" data-screen="3">
+                    <div class="wizard-row">
+                        <div class="wizard-field">
+                            <label>Bot name</label>
+                            <input id="wizBotName" type="text" value="Claude">
+                            <span class="hint">Also the bot's Minecraft username.</span>
+                        </div>
+                        <div class="wizard-field">
+                            <label>Model</label>
+                            <select id="wizModel"></select>
+                        </div>
+                    </div>
+                    <div class="wizard-field">
+                        <label>Base profile</label>
+                        <select id="wizBaseProfile">
+                            <option value="assistant" selected>assistant</option>
+                            <option value="survival">survival</option>
+                            <option value="creative">creative</option>
+                            <option value="god_mode">god_mode</option>
+                        </select>
+                    </div>
+                    <div class="wizard-field">
+                        <label>Personality (optional)</label>
+                        <textarea id="wizPersonality" rows="3" placeholder="e.g. You are a cheerful builder who loves redstone."></textarea>
+                        <span class="hint">Prepended to the bot's system prompt.</span>
+                    </div>
+                </div>
+
+                <div class="wizard-screen" data-screen="4">
+                    <p class="wizard-intro">Ready to launch.</p>
+                    <pre id="wizSummary" style="background:#262626;padding:12px;border-radius:4px;overflow:auto;"></pre>
+                </div>
+
+                <div id="wizError" style="color:#f44336;margin-top:10px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="wizBackBtn" class="neutral-btn">Back</button>
+                <button id="wizNextBtn" class="start-btn">Next</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const socket = io({ path: window.location.pathname + 'socket.io' })
         const agentsDiv = document.getElementById('agents');
@@ -416,6 +569,141 @@
         socket.on('connect_error', () => {
             updateStatus(false);
         });
+
+        // ---- Setup wizard ----
+        const wizard = (() => {
+            const MODELS = {
+                ANTHROPIC_API_KEY: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-3-5-haiku-latest'],
+                OPENAI_API_KEY:    ['gpt-4o', 'gpt-4o-mini', 'o1-mini'],
+                GEMINI_API_KEY:    ['gemini-1.5-pro', 'gemini-1.5-flash'],
+                GROQCLOUD_API_KEY: ['groq/llama-3.1-70b-versatile', 'groq/mixtral-8x7b-32768'],
+                REPLICATE_API_KEY: ['meta/meta-llama-3-70b-instruct'],
+                OPENROUTER_API_KEY:['openrouter/anthropic/claude-sonnet-4-6'],
+            };
+            const modal = document.getElementById('setupWizardModal');
+            const screens = [...modal.querySelectorAll('.wizard-screen')];
+            const stepEls = [...modal.querySelectorAll('.wizard-steps .step')];
+            const nextBtn = document.getElementById('wizNextBtn');
+            const backBtn = document.getElementById('wizBackBtn');
+            const errEl = document.getElementById('wizError');
+            let step = 0;
+            let serverConfig = null;
+
+            function setStep(n) {
+                step = n;
+                screens.forEach((s, i) => s.classList.toggle('active', i === n));
+                stepEls.forEach((s, i) => {
+                    s.classList.toggle('active', i === n);
+                    s.classList.toggle('done', i < n);
+                });
+                backBtn.style.visibility = n === 0 ? 'hidden' : 'visible';
+                nextBtn.textContent = n === screens.length - 1 ? 'Launch' : 'Next';
+                errEl.textContent = '';
+                if (n === 1) document.getElementById('wizKeyLabel').textContent = providerKey();
+                if (n === 3) populateModels();
+                if (n === 4) renderSummary();
+            }
+            function providerKey() { return document.getElementById('wizProvider').value; }
+            function populateModels() {
+                const sel = document.getElementById('wizModel');
+                sel.replaceChildren();
+                for (const m of MODELS[providerKey()] || []) {
+                    const opt = document.createElement('option');
+                    opt.value = m; opt.textContent = m;
+                    sel.appendChild(opt);
+                }
+            }
+            function readServer() {
+                return {
+                    host: document.getElementById('wizHost').value.trim(),
+                    port: Number(document.getElementById('wizPort').value),
+                    auth: document.getElementById('wizAuth').value,
+                    minecraft_version: document.getElementById('wizVersion').value.trim() || 'auto',
+                };
+            }
+            function readProfile() {
+                const p = {
+                    name: document.getElementById('wizBotName').value.trim(),
+                    model: document.getElementById('wizModel').value,
+                };
+                const personality = document.getElementById('wizPersonality').value.trim();
+                if (personality) p.conversing = personality + '\n\n$ALL';
+                return p;
+            }
+            function renderSummary() {
+                const s = readServer(), p = readProfile();
+                document.getElementById('wizSummary').textContent =
+                    `Provider:  ${providerKey()}\n` +
+                    `Server:    ${s.host}:${s.port} (auth=${s.auth}, mc=${s.minecraft_version})\n` +
+                    `Bot:       ${p.name}\n` +
+                    `Model:     ${p.model}\n` +
+                    `Base:      ${document.getElementById('wizBaseProfile').value}`;
+            }
+            function emit(ev, data) {
+                return new Promise((res, rej) => socket.emit(ev, data, r => r?.success === false ? rej(new Error(r.error)) : res(r)));
+            }
+            async function next() {
+                try {
+                    if (step === 1) {
+                        const key = document.getElementById('wizApiKey').value.trim();
+                        if (!key && !serverConfig?.hasKeys) throw new Error('API key is required');
+                        if (key) await emit('save-keys', { [providerKey()]: key });
+                        document.getElementById('wizApiKey').value = '';
+                    }
+                    if (step === 3) {
+                        const p = readProfile();
+                        if (!p.name) throw new Error('Bot name is required');
+                        await emit('save-profile', p);
+                    }
+                    if (step === screens.length - 1) return launch();
+                    setStep(step + 1);
+                } catch (e) { errEl.textContent = e.message; }
+            }
+            async function launch() {
+                nextBtn.disabled = true;
+                errEl.textContent = '';
+                try {
+                    const server = readServer();
+                    const profile = readProfile();
+                    const base_profile = document.getElementById('wizBaseProfile').value;
+                    await emit('save-config', { server, bots: [{ profile: profile.name, base_profile }] });
+                    await emit('create-agent', { ...server, base_profile, profile });
+                    close();
+                } catch (e) { errEl.textContent = e.message; }
+                finally { nextBtn.disabled = false; }
+            }
+            function open() {
+                socket.emit('get-config', (res) => {
+                    serverConfig = res;
+                    if (res.config?.server) {
+                        document.getElementById('wizHost').value = res.config.server.host || 'localhost';
+                        document.getElementById('wizPort').value = res.config.server.port || 25565;
+                        document.getElementById('wizAuth').value = res.config.server.auth || 'offline';
+                        document.getElementById('wizVersion').value = res.config.server.minecraft_version || 'auto';
+                    }
+                    if (res.hasKeys) {
+                        document.getElementById('wizApiKey').placeholder = '(already saved — leave blank to keep)';
+                    }
+                    setStep(0);
+                    modal.style.display = 'flex';
+                });
+            }
+            function close() { modal.style.display = 'none'; }
+            function maybeAutoOpen() {
+                socket.emit('get-config', (res) => {
+                    serverConfig = res;
+                    if (!res.config && !res.hasKeys) open();
+                });
+            }
+
+            nextBtn.addEventListener('click', next);
+            backBtn.addEventListener('click', () => setStep(Math.max(0, step - 1)));
+            document.getElementById('openSetupBtn').addEventListener('click', open);
+            document.getElementById('closeSetupBtn').addEventListener('click', close);
+            socket.on('connect', maybeAutoOpen);
+
+            return { open, close };
+        })();
 
         fetch('/settings_spec.json')
             .then(r => r.json())
