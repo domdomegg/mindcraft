@@ -7,7 +7,11 @@
         ".": "./src/mindcraft/index.js",
         "./settings-spec": "./src/mindcraft/public/settings_spec.json"
     },
+    "bin": {
+        "mindcraft": "./bin/mindcraft.js"
+    },
     "files": [
+        "bin",
         "src",
         "profiles",
         "patches",

@@ -19,6 +19,14 @@ const agent_listeners = [];
 
 const settings_spec = JSON.parse(readFileSync(path.join(__dirname, 'public/settings_spec.json'), 'utf8'));
 
+// Allows the CLI / library callers to override defaults (e.g. data_dir) for
+// agents created later via the web UI's create-agent socket event.
+export function overrideSpecDefaults(overrides) {
+    for (const [key, value] of Object.entries(overrides)) {
+        if (settings_spec[key]) settings_spec[key].default = value;
+    }
+}
+
 class AgentConnection {
     constructor(settings, viewer_port) {
         this.socket = null;
