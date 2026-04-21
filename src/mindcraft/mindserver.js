@@ -29,6 +29,26 @@ export function overrideSpecDefaults(overrides) {
     }
 }
 
+// Fills missing keys from spec defaults and strips unknown keys, mutating and
+// returning settings. Throws if a required key is missing — callers decide
+// whether to surface that as an API error or a thrown exception.
+export function applySpecDefaults(settings) {
+    for (const key in settings_spec) {
+        if (!(key in settings)) {
+            if (settings_spec[key].required) {
+                throw new Error(`Setting ${key} is required`);
+            }
+            settings[key] = settings_spec[key].default;
+        }
+    }
+    for (const key in settings) {
+        if (!(key in settings_spec)) {
+            delete settings[key];
+        }
+    }
+    return settings;
+}
+
 class AgentConnection {
     constructor(settings, viewer_port) {
         this.socket = null;
@@ -79,21 +99,11 @@ export function createMindServer(host_public = false, port = 8080) {
 
         socket.on('create-agent', async (settings, callback) => {
             console.log('API create agent...');
-            for (let key in settings_spec) {
-                if (!(key in settings)) {
-                    if (settings_spec[key].required) {
-                        callback({ success: false, error: `Setting ${key} is required` });
-                        return;
-                    }
-                    else {
-                        settings[key] = settings_spec[key].default;
-                    }
-                }
-            }
-            for (let key in settings) {
-                if (!(key in settings_spec)) {
-                    delete settings[key];
-                }
+            try {
+                applySpecDefaults(settings);
+            } catch (err) {
+                callback({ success: false, error: err.message });
+                return;
             }
             if (settings.profile?.name) {
                 if (settings.profile.name in agent_connections) {

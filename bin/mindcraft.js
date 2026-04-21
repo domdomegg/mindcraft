@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { init, createAgent } from '../src/mindcraft/mindcraft.js';
-import { overrideSpecDefaults } from '../src/mindcraft/mindserver.js';
+import { overrideSpecDefaults, applySpecDefaults } from '../src/mindcraft/mindserver.js';
 import * as userconfig from '../src/mindcraft/userconfig.js';
 
 const HELP = `
@@ -68,14 +68,16 @@ async function main() {
             const profile = profiles[a.profile];
             if (!profile) { console.warn(`Skipping agent "${a.profile}": profile not found`); continue; }
             console.log(`Restoring agent: ${a.profile}`);
-            await createAgent({
+            const settings = {
                 ...(config.settings || {}),
                 ...(config.server || {}),
                 ...(a.settings || {}),
                 data_dir: opts.dataDir,
                 base_profile: a.base_profile || 'assistant',
                 profile,
-            });
+            };
+            applySpecDefaults(settings);
+            await createAgent(settings);
         }
     } else {
         console.log(`No saved agents — open the UI to run setup.\n`);
